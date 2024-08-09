@@ -18,40 +18,33 @@ enum Action {
     Error(String),
 }
 
+fn match_normal_args(folder_path_str: &String, password: String) -> Action {
+    let folder_path = PathBuf::from(folder_path_str);
+    match (folder_path.is_dir(), fs::read(folder_path.join("salt.key"))) {
+        (true, Ok(salt)) => Action::Decrypt {
+            folder_path,
+            password,
+            salt,
+        },
+        (true, Err(_)) => Action::Encrypt {
+            folder_path,
+            password,
+        },
+        (false, _) => Action::Error("指定的路径不是一个文件夹。".to_string()),
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let action = match args.as_slice() {
-        [_, folder_path_str, password] => {
-            let folder_path = PathBuf::from(folder_path_str);
-            match (folder_path.is_dir(), fs::read(folder_path.join("salt.key"))) {
-                (true, Ok(salt)) => Action::Decrypt {
-                    folder_path,
-                    password: password.to_string(),
-                    salt,
-                },
-                (true, Err(_)) => Action::Encrypt {
-                    folder_path,
-                    password: password.to_string(),
-                },
-                (false, _) => Action::Error("指定的路径不是一个文件夹。".to_string()),
-            }
+        [_, folder_path_str, password_readed] => {
+            let password = password_readed.to_string();
+            match_normal_args(folder_path_str, password)
         }
         [_, folder_path_str] => {
-            let folder_path = PathBuf::from(folder_path_str);
             println!("请输入密码:");
-            let password_input = read_password()?;
-            match (folder_path.is_dir(), fs::read(folder_path.join("salt.key"))) {
-                (true, Ok(salt)) => Action::Decrypt {
-                    folder_path,
-                    password: password_input,
-                    salt,
-                },
-                (true, Err(_)) => Action::Encrypt {
-                    folder_path,
-                    password: password_input,
-                },
-                (false, _) => Action::Error("指定的路径不是一个文件夹。".to_string()),
-            }
+            let password = read_password()?;
+            match_normal_args(folder_path_str, password)
         }
         _ => Action::Error("请拖动一个文件夹到程序上或者直接指定文件夹路径作为参数。".to_string()),
     };
