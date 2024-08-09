@@ -1,0 +1,9 @@
+[package]
+name = "tarzst"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num_cpus = "1.16.0"
+tar = "0.4.41"
+zstd = { version = "0.13.2", features = ["zstdmt"] }
