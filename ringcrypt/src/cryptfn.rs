@@ -42,6 +42,8 @@ pub fn encrypt_loop(
     aead: &LessSafeKey,
     salt: &[u8; 32],
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let salt_path = folder_path.join("salt.key");
+    fs::write(salt_path, salt)?;
     let rng = SystemRandom::new();
     WalkDir::new(folder_path)
         .into_iter()
@@ -49,16 +51,12 @@ pub fn encrypt_loop(
         .par_bridge()
         .for_each(|entry| {
             let path = entry.path();
-            if path.is_file() {
+            if path.is_file() && path.file_name().unwrap() != "salt.key" {
                 let encrypted_file = encrypt_single(aead, path, &rng);
                 fs::write(path, encrypted_file).expect("写入失败");
                 println!("文件 '{}' 已加密。", path.display());
             }
         });
-
-    // 保存盐值到文本文件
-    let salt_path = folder_path.join("salt.key");
-    fs::write(salt_path, salt)?;
     Ok(())
 }
 
