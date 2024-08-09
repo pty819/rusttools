@@ -3,10 +3,9 @@ use ring::aead;
 use ring::aead::LessSafeKey;
 use ring::pbkdf2;
 use ring::rand::{SecureRandom, SystemRandom};
-use std::io::ErrorKind;
+use std::fs;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
-use std::{fs, io};
 use walkdir::WalkDir;
 
 pub fn generate_key_aead(
@@ -65,7 +64,7 @@ pub fn encrypt_loop(
 
 fn encrypt_single(less_safe_key: &LessSafeKey, path: &Path, rng: &SystemRandom) -> Vec<u8> {
     let mut file_content = fs::read(path).expect("读取文件失败");
-    let mut nonce_arr = [0u8;12];
+    let mut nonce_arr = [0u8; 12];
     rng.fill(&mut nonce_arr).expect("随机数生成失败");
     let nonce = aead::Nonce::assume_unique_for_key(nonce_arr); // 在实际应用中，应该使用唯一的nonce
     let aad = aead::Aad::empty(); // 附加的认证数据
@@ -74,7 +73,7 @@ fn encrypt_single(less_safe_key: &LessSafeKey, path: &Path, rng: &SystemRandom) 
         .seal_in_place_separate_tag(nonce, aad, &mut file_content)
         .map_err(|_| "加密失败")
         .expect("加密失败"); // 加密文件内容
-    
+
     let mut encrypted_file = file_content;
     encrypted_file.extend_from_slice(tag.as_ref());
     final_data.extend_from_slice(&encrypted_file);
@@ -94,7 +93,7 @@ pub fn decrypt_loop(
             let path = entry.path();
             if path.is_file() && path.file_name().unwrap() != "salt.key" {
                 let decrypted_file = decrypt_single(less_safe_key, path);
-                fs::write(path, decrypted_file);
+                let _ = fs::write(path, decrypted_file);
                 println!("文件 '{}' 已解密。", path.display());
             }
         });
@@ -103,17 +102,14 @@ pub fn decrypt_loop(
 }
 
 fn decrypt_single(less_safe_key: &LessSafeKey, path: &Path) -> Vec<u8> {
-    let mut file_content = fs::read(path)?;
-    let (nonce_arr, encrypted_data) = file_content.split_at(12);
-    let nonce_arr: [u8; 12] = nonce_arr.try_into().expect("Nonce conversion failed");
+    let mut file_content = fs::read(path).expect("读取文件失败");
+    let (nonce_arr, encrypted_data) = file_content.split_at_mut(12);
+    let nonce_arr: [u8; 12] = nonce_arr.try_into().expect("Nonce 转换失败");
     let nonce = aead::Nonce::assume_unique_for_key(nonce_arr);
     let aad = aead::Aad::empty();
 
-    let ret = less_safe_key
+    less_safe_key
         .open_in_place(nonce, aad, encrypted_data)
-        .map(|decrypted_data| decrypted_data.to_vec())
-        .map_err(|e| Box::new(io::Error::new(ErrorKind::InvalidData, "解密失败")) as Box<dyn std::error::Error>);
-
-    ret.as_ref()
-    
+        .expect("解密失败")
+        .to_vec()
 }
