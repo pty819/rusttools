@@ -1,16 +1,15 @@
-use rayon::prelude::*;
+use argon2::{self, Argon2};
 use aws_lc_rs::aead;
 use aws_lc_rs::aead::LessSafeKey;
-use aws_lc_rs::pbkdf2;
 use aws_lc_rs::rand::{SecureRandom, SystemRandom};
+use rayon::prelude::*;
 use std::fs;
-use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 pub const SALT_LEN: usize = 32;
 const NONCE_LEN: usize = 12;
-const PBKDF2_CYCLE: u32 = 100_000;
+const KEY_LEN: usize = 32;
 
 pub fn generate_key_aead(
     password: String,
@@ -26,19 +25,16 @@ pub fn generate_key_aead(
         }
     };
 
-    // 使用PBKDF2算法和盐值生成密钥
-    let mut key = [0u8; SALT_LEN];
-    pbkdf2::derive(
-        pbkdf2::PBKDF2_HMAC_SHA512,
-        NonZeroU32::new(PBKDF2_CYCLE).unwrap(),
-        &salt,
-        password.as_bytes(),
-        &mut key,
-    );
+    // 使用Argon2算法和盐值生成密钥
+    let argon2 = Argon2::default();
+    let mut key = [0u8; KEY_LEN];
+    argon2
+        .hash_password_into(password.as_bytes(), &salt, &mut key)
+        .unwrap();
 
     // 使用生成的密钥创建加密器
-    let key = aead::UnboundKey::new(&aead::AES_256_GCM, &key).expect("密钥创建失败");
-    (aead::LessSafeKey::new(key), salt)
+    let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, &key).expect("密钥创建失败");
+    (aead::LessSafeKey::new(unbound_key), salt)
 }
 
 pub fn encrypt_loop(
