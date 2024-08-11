@@ -1,7 +1,7 @@
 use argon2::{self, Argon2};
-use aws_lc_rs::aead;
-use aws_lc_rs::aead::LessSafeKey;
-use aws_lc_rs::rand::{SecureRandom, SystemRandom};
+use ring::aead;
+use ring::aead::LessSafeKey;
+use ring::rand::{SecureRandom, SystemRandom};
 use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
