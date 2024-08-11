@@ -62,8 +62,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             password,
             salt,
         } => {
-            let mut salt_array = [0u8; 32];
-            salt_array.copy_from_slice(&salt[0..32]);
+            let mut salt_array = [0u8; cryptfn::SALT_LEN];
+            salt_array.copy_from_slice(&salt[0..cryptfn::SALT_LEN]);
             let (less_safe_key, _) = cryptfn::generate_key_aead(password, Some(salt_array));
             cryptfn::decrypt_loop(&folder_path, &less_safe_key)
         }

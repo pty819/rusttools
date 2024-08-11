@@ -8,25 +8,29 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+pub const SALT_LEN: usize = 32;
+const NONCE_LEN: usize = 12;
+const PBKDF2_CYCLE: u32 = 100_000;
+
 pub fn generate_key_aead(
     password: String,
-    provided_salt: Option<[u8; 32]>,
-) -> (aead::LessSafeKey, [u8; 32]) {
+    provided_salt: Option<[u8; SALT_LEN]>,
+) -> (aead::LessSafeKey, [u8; SALT_LEN]) {
     let rng = SystemRandom::new();
     let salt = match provided_salt {
         Some(s) => s,
         None => {
-            let mut new_salt = [0u8; 32];
+            let mut new_salt = [0u8; SALT_LEN];
             rng.fill(&mut new_salt).expect("随机数生成失败");
             new_salt
         }
     };
 
     // 使用PBKDF2算法和盐值生成密钥
-    let mut key = [0u8; 32];
+    let mut key = [0u8; SALT_LEN];
     pbkdf2::derive(
         pbkdf2::PBKDF2_HMAC_SHA256,
-        NonZeroU32::new(100_000).unwrap(),
+        NonZeroU32::new(PBKDF2_CYCLE).unwrap(),
         &salt,
         password.as_bytes(),
         &mut key,
@@ -40,7 +44,7 @@ pub fn generate_key_aead(
 pub fn encrypt_loop(
     folder_path: &PathBuf,
     less_safe_key: &LessSafeKey,
-    salt: &[u8; 32],
+    salt: &[u8; SALT_LEN],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let salt_path = folder_path.join("salt.key");
     fs::write(salt_path, salt)?;
@@ -62,7 +66,7 @@ pub fn encrypt_loop(
 
 fn encrypt_single(less_safe_key: &LessSafeKey, path: &Path, rng: &SystemRandom) -> Vec<u8> {
     let mut file_content = fs::read(path).expect("读取文件失败");
-    let mut nonce_arr = [0u8; 12];
+    let mut nonce_arr = [0u8; NONCE_LEN];
     rng.fill(&mut nonce_arr).expect("随机数生成失败");
     let nonce = aead::Nonce::assume_unique_for_key(nonce_arr); // 在实际应用中，应该使用唯一的nonce
     let aad = aead::Aad::empty(); // 附加的认证数据
@@ -101,8 +105,8 @@ pub fn decrypt_loop(
 
 fn decrypt_single(less_safe_key: &LessSafeKey, path: &Path) -> Vec<u8> {
     let mut file_content = fs::read(path).expect("读取文件失败");
-    let (nonce_arr, encrypted_data) = file_content.split_at_mut(12);
-    let nonce_arr: [u8; 12] = nonce_arr.try_into().expect("Nonce 转换失败");
+    let (nonce_arr, encrypted_data) = file_content.split_at_mut(NONCE_LEN);
+    let nonce_arr: [u8; NONCE_LEN] = nonce_arr.try_into().expect("Nonce 转换失败");
     let nonce = aead::Nonce::assume_unique_for_key(nonce_arr);
     let aad = aead::Aad::empty();
 
