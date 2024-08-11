@@ -1,6 +1,5 @@
 use argon2::{self, Argon2};
-use ring::aead;
-use ring::aead::LessSafeKey;
+use ring::aead::{self, LessSafeKey};
 use ring::rand::{SecureRandom, SystemRandom};
 use rayon::prelude::*;
 use std::fs;
