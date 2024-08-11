@@ -7,3 +7,4 @@ edition = "2021"
 num_cpus = "1.16.0"
 tar = "0.4.41"
 zstd = { version = "0.13.2", features = ["zstdmt"] }
+mimalloc = { version = "0.1.43", features = ["secure"]}

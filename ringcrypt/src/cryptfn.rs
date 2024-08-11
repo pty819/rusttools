@@ -1,8 +1,8 @@
 use rayon::prelude::*;
-use ring::aead;
-use ring::aead::LessSafeKey;
-use ring::pbkdf2;
-use ring::rand::{SecureRandom, SystemRandom};
+use aws_lc_rs::aead;
+use aws_lc_rs::aead::LessSafeKey;
+use aws_lc_rs::pbkdf2;
+use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 use std::fs;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -29,7 +29,7 @@ pub fn generate_key_aead(
     // 使用PBKDF2算法和盐值生成密钥
     let mut key = [0u8; SALT_LEN];
     pbkdf2::derive(
-        pbkdf2::PBKDF2_HMAC_SHA256,
+        pbkdf2::PBKDF2_HMAC_SHA512,
         NonZeroU32::new(PBKDF2_CYCLE).unwrap(),
         &salt,
         password.as_bytes(),

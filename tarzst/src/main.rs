@@ -6,7 +6,11 @@ use std::time::{Duration, Instant};
 use std::{env, thread};
 use tar::{Archive, Builder};
 use zstd::stream::{Decoder, Encoder};
+extern crate mimalloc;
+use mimalloc::MiMalloc;
 
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 // 主函数，程序入口点
 fn main() -> std::io::Result<()> {
     // 收集命令行参数

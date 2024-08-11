@@ -5,7 +5,8 @@ edition = "2021"
 
 [dependencies]
 rayon = "1.10.0"
-ring = "0.17.8"
+# ring = "0.17.8"
 rpassword = "7.3.1"
 walkdir = "2.5.0"
-
+mimalloc = { version = "0.1.43", features = ["secure"]}
+aws-lc-rs = { version = "1.8.1", features = ["bindgen"]}

@@ -3,7 +3,11 @@ use rpassword::read_password;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+extern crate mimalloc;
+use mimalloc::MiMalloc;
 
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 // 定义一个枚举来表示不同的程序状态
 enum Action {
     Encrypt {
