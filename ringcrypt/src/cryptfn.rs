@@ -39,7 +39,7 @@ pub fn generate_key_aead(
 
 pub fn encrypt_loop(
     folder_path: &PathBuf,
-    aead: &LessSafeKey,
+    less_safe_key: &LessSafeKey,
     salt: &[u8; 32],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let salt_path = folder_path.join("salt.key");
@@ -52,7 +52,7 @@ pub fn encrypt_loop(
         .for_each(|entry| {
             let path = entry.path();
             if path.is_file() && path.file_name().unwrap() != "salt.key" {
-                let encrypted_file = encrypt_single(aead, path, &rng);
+                let encrypted_file = encrypt_single(less_safe_key, path, &rng);
                 fs::write(path, encrypted_file).expect("写入失败");
                 println!("文件 '{}' 已加密。", path.display());
             }
