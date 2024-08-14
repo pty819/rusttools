@@ -1,7 +1,7 @@
 use argon2::{self, Argon2};
+use rayon::prelude::*;
 use ring::aead::{self, LessSafeKey};
 use ring::rand::{SecureRandom, SystemRandom};
-use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -51,31 +51,29 @@ pub fn encrypt_loop(
         .for_each(|entry| {
             let path = entry.path();
             if path.is_file() && path.file_name().unwrap() != "salt.key" {
-                let encrypted_file = encrypt_single(less_safe_key, path, &rng);
-                fs::write(path, encrypted_file).expect("写入失败");
-                println!("文件 '{}' 已加密。", path.display());
+                encrypt_single(less_safe_key, path, &rng)
+                    .unwrap_or_else(|_| println!("{:?} 加密失败", path));
             }
         });
     Ok(())
 }
 
-fn encrypt_single(less_safe_key: &LessSafeKey, path: &Path, rng: &SystemRandom) -> Vec<u8> {
+fn encrypt_single(
+    less_safe_key: &LessSafeKey,
+    path: &Path,
+    rng: &SystemRandom,
+) -> Result<(), std::io::Error> {
     let mut file_content = fs::read(path).expect("读取文件失败");
     let mut nonce_arr = [0u8; NONCE_LEN];
     rng.fill(&mut nonce_arr).expect("随机数生成失败");
     let nonce = aead::Nonce::assume_unique_for_key(nonce_arr); // 在实际应用中，应该使用唯一的nonce
     let aad = aead::Aad::empty(); // 附加的认证数据
     let mut final_data = nonce.as_ref().to_vec();
-    let tag = less_safe_key
-        .seal_in_place_separate_tag(nonce, aad, &mut file_content)
-        .map_err(|_| "加密失败")
-        .expect("加密失败"); // 加密文件内容
-
-    let mut encrypted_file = file_content;
-    encrypted_file.extend_from_slice(tag.as_ref());
-    final_data.extend_from_slice(&encrypted_file);
-    // encrypted_file
-    final_data
+    less_safe_key
+        .seal_in_place_append_tag(nonce, aad, &mut file_content)
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "加密失败"))?;
+    final_data.append(&mut file_content);
+    fs::write(path, final_data)
 }
 
 pub fn decrypt_loop(
@@ -89,16 +87,15 @@ pub fn decrypt_loop(
         .for_each(|entry| {
             let path = entry.path();
             if path.is_file() && path.file_name().unwrap() != "salt.key" {
-                let decrypted_file = decrypt_single(less_safe_key, path);
-                let _ = fs::write(path, decrypted_file);
-                println!("文件 '{}' 已解密。", path.display());
+                decrypt_single(less_safe_key, path)
+                    .unwrap_or_else(|_| println!("{:?} 解密失败", path));
             }
         });
     fs::remove_file(folder_path.join("salt.key"))?;
     Ok(())
 }
 
-fn decrypt_single(less_safe_key: &LessSafeKey, path: &Path) -> Vec<u8> {
+fn decrypt_single(less_safe_key: &LessSafeKey, path: &Path) -> Result<(), std::io::Error> {
     let mut file_content = fs::read(path).expect("读取文件失败");
     let (nonce_arr, encrypted_data) = file_content.split_at_mut(NONCE_LEN);
     let nonce_arr: [u8; NONCE_LEN] = nonce_arr.try_into().expect("Nonce 转换失败");
@@ -107,6 +104,6 @@ fn decrypt_single(less_safe_key: &LessSafeKey, path: &Path) -> Vec<u8> {
 
     less_safe_key
         .open_in_place(nonce, aad, encrypted_data)
-        .expect("解密失败")
-        .to_vec()
+        .expect("解密失败");
+    fs::write(path, encrypted_data)
 }

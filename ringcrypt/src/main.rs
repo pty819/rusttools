@@ -59,6 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             password,
         } => {
             let (less_safe_key, salt_arr) = cryptfn::generate_key_aead(password, None);
+            println!("未发现salt.key,正在执行加密！");
             cryptfn::encrypt_loop(&folder_path, &less_safe_key, &salt_arr)
         }
         Action::Decrypt {
@@ -68,6 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } => {
             let mut salt_array = [0u8; cryptfn::SALT_LEN];
             salt_array.copy_from_slice(&salt[0..cryptfn::SALT_LEN]);
+            println!("发现salt.key,正在执行解密！");
             let (less_safe_key, _) = cryptfn::generate_key_aead(password, Some(salt_array));
             cryptfn::decrypt_loop(&folder_path, &less_safe_key)
         }
