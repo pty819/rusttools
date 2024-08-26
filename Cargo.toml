@@ -1,5 +1,5 @@
 [workspace]
-members = ["ringcrypt", "tarzst"]
+members = [ "loadbanceruuid","ringcrypt", "tarzst"]
 resolver = "2"
 
 [profile.release]
