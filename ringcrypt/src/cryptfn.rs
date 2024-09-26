@@ -102,8 +102,9 @@ fn decrypt_single(less_safe_key: &LessSafeKey, path: &Path) -> Result<(), std::i
     let nonce = aead::Nonce::assume_unique_for_key(nonce_arr);
     let aad = aead::Aad::empty();
 
-    less_safe_key
+    let decrypted_data = less_safe_key
         .open_in_place(nonce, aad, encrypted_data)
         .expect("解密失败");
-    fs::write(path, encrypted_data)
+
+    fs::write(path, decrypted_data)
 }
